@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Temporal\OpenTelemetry\Interceptor;
 
+use OpenTelemetry\API\Common\Time\Clock;
 use OpenTelemetry\API\Trace\SpanKind;
-use OpenTelemetry\SDK\Common\Time\ClockFactory;
 use React\Promise\PromiseInterface;
 use Temporal\Interceptor\WorkflowOutboundRequestInterceptor;
 use Temporal\OpenTelemetry\Enum\RequestAttribute;
@@ -53,7 +53,7 @@ final class OpenTelemetryWorkflowOutboundRequestInterceptor implements WorkflowO
      */
     private function trace(Tracer $tracer, RequestInterface $request, \Closure $handler): mixed
     {
-        $now = ClockFactory::getDefault()->now();
+        $now = Clock::getDefault()->now();
         $type = Workflow::getInfo()->type;
 
         return $tracer->trace(
