@@ -26,37 +26,36 @@ composer require temporal/open-telemetry-interceptors
 
 First create a pipeline provider with the interceptors you want to use.
 
-The following example shows how to create a pipeline provider with the `OpenTelemetryActivityInboundInterceptor`:
+The following example shows how to create a pipeline provider with all three interceptors:
 
 ```php
+use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
 use OpenTelemetry\SDK\Trace;
 use Temporal\OpenTelemetry\Interceptor\OpenTelemetryActivityInboundInterceptor;
+use Temporal\OpenTelemetry\Interceptor\OpenTelemetryWorkflowClientCallsInterceptor;
+use Temporal\OpenTelemetry\Interceptor\OpenTelemetryWorkflowOutboundRequestInterceptor;
 use Temporal\Interceptor\SimplePipelineProvider;
 
+// Create a span processor
 $spanProcessor = (new Trace\SpanProcessorFactory())->create(
-    (new Trace\ExporterFactory())->create();
+    (new Trace\ExporterFactory())->create(),
 );
-
+// Create a tracer provider
 $tracerProvider = new Trace\TracerProvider($spanProcessor);
-$propagator = Trace\Propagation\TraceContextPropagator::getInstance();
 
+// Create a tracer which wraps the OpenTelemetry tracer from the tracer provider
 $tracer = new Temporal\OpenTelemetry\Tracer(
+    // Pass a unique name for your application
     $tracerProvider->getTracer('My super app'),
-    $propagator
+    TraceContextPropagator::getInstance(),
 );
-
-$activityInterceptor =  new OpenTelemetryActivityInboundInterceptor($tracer);
 
 $provider = new SimplePipelineProvider([
-     $activityInterceptor
+    new OpenTelemetryActivityInboundInterceptor($tracer),
+    new OpenTelemetryWorkflowClientCallsInterceptor($tracer),
+    new OpenTelemetryWorkflowOutboundRequestInterceptor($tracer),
 ]);
 ```
-
-In this code snippet, we first create a span processor and a tracer provider using the OpenTelemetry SDK. We also
-initialize a propagator for trace context propagation.
-
-Next, we create an instance of the `Temporal\OpenTelemetry\Tracer` class, which wraps the OpenTelemetry tracer from the
-tracer provider. We provide a unique name for our application and the propagator.
 
 ### Create a Workflow Client and Worker with Interceptors
 
@@ -109,6 +108,9 @@ events, including `ExecuteActivity`, `ExecuteLocalActivity`, `ExecuteChildWorkfl
 
 It captures spans with the name `WorkflowOutboundRequest:<event>`, providing detailed information
 about outbound event requests.
+
+> [!WARNING]
+> This interceptor operates in blocking mode when sending telemetry to the server, which may slow down your Workflow Worker. It is recommended to use a local collector to minimize the impact of network latency.
 
 ## Available interceptor interfaces
 
