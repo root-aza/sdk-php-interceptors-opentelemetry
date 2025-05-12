@@ -28,6 +28,7 @@ final class OpenTelemetryWorkflowOutboundRequestInterceptor implements WorkflowO
     /**
      * @throws \Throwable
      */
+    #[\Override]
     public function handleOutboundRequest(RequestInterface $request, callable $next): PromiseInterface
     {
         $header = $request->getHeader();

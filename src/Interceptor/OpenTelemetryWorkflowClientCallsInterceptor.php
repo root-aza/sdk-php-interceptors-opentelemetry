@@ -8,6 +8,8 @@ use OpenTelemetry\API\Trace\SpanKind;
 use Temporal\Interceptor\Trait\WorkflowClientCallsInterceptorTrait;
 use Temporal\Interceptor\WorkflowClient\SignalWithStartInput;
 use Temporal\Interceptor\WorkflowClient\StartInput;
+use Temporal\Interceptor\WorkflowClient\UpdateWithStartInput;
+use Temporal\Interceptor\WorkflowClient\UpdateWithStartOutput;
 use Temporal\Interceptor\WorkflowClientCallsInterceptor;
 use Temporal\OpenTelemetry\Enum\SpanName;
 use Temporal\OpenTelemetry\Enum\WorkflowAttribute;
@@ -27,6 +29,7 @@ final class OpenTelemetryWorkflowClientCallsInterceptor implements WorkflowClien
     /**
      * @throws \Throwable
      */
+    #[\Override]
     public function start(StartInput $input, callable $next): WorkflowExecution
     {
         $tracer = $this->getTracerWithContext($input->header);
@@ -47,6 +50,7 @@ final class OpenTelemetryWorkflowClientCallsInterceptor implements WorkflowClien
     /**
      * @throws \Throwable
      */
+    #[\Override]
     public function signalWithStart(SignalWithStartInput $input, callable $next): WorkflowExecution
     {
         $startInput = $input->workflowStartInput;

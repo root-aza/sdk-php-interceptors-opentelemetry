@@ -23,6 +23,7 @@ final class OpenTelemetryActivityInboundInterceptor implements ActivityInboundIn
     ) {
     }
 
+    #[\Override]
     public function handleActivityInbound(ActivityInput $input, callable $next): mixed
     {
         return $this->getTracerWithContext($input->header)->trace(
