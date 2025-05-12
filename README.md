@@ -1,32 +1,26 @@
-# Temporal OpenTelemetry interceptors
+# Temporal OpenTelemetry Interceptors
 
 ## Introduction
 
-The `temporal/open-telemetry-interceptors` package provides a set of OpenTelemetry interceptors for tracing workflows
-and activities within the Temporal system using
-the [OpenTelemetry SDK](https://opentelemetry.io/docs/instrumentation/php/).
+The `temporal/open-telemetry-interceptors` package provides OpenTelemetry interceptors for tracing workflows and activities within the Temporal system using the [OpenTelemetry SDK](https://opentelemetry.io/docs/instrumentation/php/).
 
-These interceptors allow you to capture and trace various actions and events, such as handling activities, starting or
-sending signals to workflows, and executing workflow events. By integrating OpenTelemetry tracing, you gain visibility
-into the behavior and performance of your Temporal applications.
+These interceptors capture and trace various actions and events, such as handling activities, starting workflows, sending signals, and executing workflow events. By integrating OpenTelemetry tracing, you gain visibility into the behavior and performance of your Temporal applications.
 
-<img width="1511" alt="otel" src="https://github.com/temporalio/sdk-php-interceptors-opentelemetry/assets/67324318/615dd335-39df-4526-af71-7f422e39bfa9">
+![OpenTelemetry Tracing Example](https://github.com/temporalio/sdk-php-interceptors-opentelemetry/assets/67324318/615dd335-39df-4526-af71-7f422e39bfa9)
 
-## Installation
+## Get Started
 
-To install the package, run the following command using Composer:
+### Installation
+
+Install the package using Composer:
 
 ```bash
 composer require temporal/open-telemetry-interceptors
 ```
 
-## Usage
+### Basic Setup
 
-### Create a Pipeline Provider with Interceptors
-
-First create a pipeline provider with the interceptors you want to use.
-
-The following example shows how to create a pipeline provider with all three interceptors:
+1. **Create a Pipeline Provider with Interceptors**
 
 ```php
 use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
@@ -40,16 +34,18 @@ use Temporal\Interceptor\SimplePipelineProvider;
 $spanProcessor = (new Trace\SpanProcessorFactory())->create(
     (new Trace\ExporterFactory())->create(),
 );
+
 // Create a tracer provider
 $tracerProvider = new Trace\TracerProvider($spanProcessor);
 
-// Create a tracer which wraps the OpenTelemetry tracer from the tracer provider
+// Create a tracer which wraps the OpenTelemetry tracer
 $tracer = new Temporal\OpenTelemetry\Tracer(
     // Pass a unique name for your application
     $tracerProvider->getTracer('My super app'),
     TraceContextPropagator::getInstance(),
 );
 
+// Configure the interceptor pipeline
 $provider = new SimplePipelineProvider([
     new OpenTelemetryActivityInboundInterceptor($tracer),
     new OpenTelemetryWorkflowClientCallsInterceptor($tracer),
@@ -57,28 +53,25 @@ $provider = new SimplePipelineProvider([
 ]);
 ```
 
-### Create a Workflow Client and Worker with Interceptors
-
-Next, create a workflow client and worker with the interceptors you want to use.
+2. **Apply Interceptors to Workflow Client and Worker**
 
 ```php
+// Add interceptors to the workflow client
 $client = new Temporal\Client\WorkflowClient(
     ..., 
     interceptorProvider: $provider
 );
 
+// Add interceptors to the worker
 $worker = new WorkerFactory(
    ...,
    pipelineProvider: $provider
 );
 ```
 
-These steps ensure that the interceptors are applied to the respective client and worker instances, enabling tracing of
-the desired actions and events.
+## Available Interceptors
 
-## Interceptors
-
-The package provides three types of interceptors:
+This package provides three specialized interceptors:
 
 ### OpenTelemetryActivityInboundInterceptor
 
@@ -110,7 +103,8 @@ It captures spans with the name `WorkflowOutboundRequest:<event>`, providing det
 about outbound event requests.
 
 > [!WARNING]
-> This interceptor operates in blocking mode when sending telemetry to the server, which may slow down your Workflow Worker. It is recommended to use a local collector to minimize the impact of network latency.
+> This interceptor operates in blocking mode when sending telemetry, which may impact Workflow Worker bandwidth.
+> Using a local collector is recommended to minimize network latency impact.
 
 ## Available interceptor interfaces
 
