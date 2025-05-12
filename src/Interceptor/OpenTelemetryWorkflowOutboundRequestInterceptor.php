@@ -22,8 +22,7 @@ final class OpenTelemetryWorkflowOutboundRequestInterceptor implements WorkflowO
 
     public function __construct(
         private readonly Tracer $tracer,
-    ) {
-    }
+    ) {}
 
     /**
      * @throws \Throwable

@@ -17,16 +17,15 @@ final class Tracer
     public function __construct(
         private readonly TracerInterface $tracer,
         private readonly TextMapPropagatorInterface $propagator,
-        private readonly array $context = []
-    ) {
-    }
+        private readonly array $context = [],
+    ) {}
 
     public function fromContext(array $context = []): self
     {
         $context = \array_intersect_ukey(
             $context,
             \array_flip($this->propagator->fields()),
-            fn(string $key1, string $key2): int => (\strtolower($key1) === \strtolower($key2)) ? 0 : -1
+            static fn(string $key1, string $key2): int => (\strtolower($key1) === \strtolower($key2)) ? 0 : -1,
         );
 
         return new self($this->tracer, $this->propagator, $context);
@@ -44,7 +43,7 @@ final class Tracer
         array $attributes = [],
         bool $scoped = false,
         ?int $spanKind = null,
-        ?int $startTime = null
+        ?int $startTime = null,
     ): mixed {
         $traceSpan = $this->getTraceSpan($name, $spanKind, $startTime);
 
@@ -82,6 +81,11 @@ final class Tracer
         return $this->context;
     }
 
+    public function getPropagator(): TextMapPropagatorInterface
+    {
+        return $this->propagator;
+    }
+
     /**
      * @param non-empty-string $name
      * @psalm-param SpanKind::KIND_* $spanKind
@@ -89,7 +93,7 @@ final class Tracer
     private function getTraceSpan(
         string $name,
         ?int $spanKind,
-        ?int $startTime
+        ?int $startTime,
     ): SpanInterface {
         $spanBuilder = $this->tracer->spanBuilder($name);
         if ($spanKind !== null) {
@@ -102,15 +106,10 @@ final class Tracer
 
         if ($this->context !== []) {
             $spanBuilder->setParent(
-                $this->propagator->extract($this->context)
+                $this->propagator->extract($this->context),
             );
         }
 
         return $this->lastSpan = $spanBuilder->startSpan();
-    }
-
-    public function getPropagator(): TextMapPropagatorInterface
-    {
-        return $this->propagator;
     }
 }

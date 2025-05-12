@@ -16,12 +16,12 @@ use Temporal\OpenTelemetry\TracerContext;
 
 final class OpenTelemetryActivityInboundInterceptor implements ActivityInboundInterceptor
 {
-    use ActivityInboundInterceptorTrait, TracerContext;
+    use ActivityInboundInterceptorTrait;
+    use TracerContext;
 
     public function __construct(
         private readonly Tracer $tracer,
-    ) {
-    }
+    ) {}
 
     #[\Override]
     public function handleActivityInbound(ActivityInput $input, callable $next): mixed

@@ -19,12 +19,12 @@ use Temporal\Workflow\WorkflowExecution;
 
 final class OpenTelemetryWorkflowClientCallsInterceptor implements WorkflowClientCallsInterceptor
 {
-    use WorkflowClientCallsInterceptorTrait, TracerContext;
+    use WorkflowClientCallsInterceptorTrait;
+    use TracerContext;
 
     public function __construct(
-        private readonly Tracer $tracer
-    ) {
-    }
+        private readonly Tracer $tracer,
+    ) {}
 
     /**
      * @throws \Throwable
