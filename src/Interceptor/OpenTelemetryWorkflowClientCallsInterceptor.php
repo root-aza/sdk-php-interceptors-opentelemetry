@@ -72,6 +72,30 @@ final class OpenTelemetryWorkflowClientCallsInterceptor implements WorkflowClien
         );
     }
 
+    /**
+     * @throws \Throwable
+     */
+    #[\Override]
+    public function updateWithStart(UpdateWithStartInput $input, callable $next): UpdateWithStartOutput
+    {
+        $startInput = $input->workflowStartInput;
+        $tracer = $this->getTracerWithContext($startInput->header);
+
+        return $tracer->trace(
+            name: SpanName::UpdateWithStartWorkflow->value . SpanName::SpanDelimiter->value . $startInput->workflowType,
+            callback: fn(): mixed => $next(
+                $input->with(
+                    workflowStartInput: $startInput->with(
+                        header: $this->setContext($startInput->header, $this->tracer->getContext()),
+                    ),
+                ),
+            ),
+            attributes: $this->buildWorkflowAttributes($startInput),
+            scoped: true,
+            spanKind: SpanKind::KIND_CLIENT,
+        );
+    }
+
     private function buildWorkflowAttributes(StartInput $input): array
     {
         return [
