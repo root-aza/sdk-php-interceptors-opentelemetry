@@ -89,3 +89,7 @@ Captures outbound requests made by workflows.
 This includes spans for activities execution, child workflows, timers, signals to external workflows,
 and other outbound operations.
 It provides comprehensive tracing of how workflows interact with other components in the system.
+
+> [!WARNING]
+> This interceptor operates in blocking mode when sending telemetry, which may impact Workflow Worker bandwidth.
+> Using a local collector is recommended to minimize network latency impact.
