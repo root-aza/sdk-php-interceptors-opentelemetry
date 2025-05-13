@@ -10,16 +10,54 @@ use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\Propagation\TextMapPropagatorInterface;
 
+/**
+ * Wrapper for OpenTelemetry tracer to simplify trace span creation and context propagation.
+ *
+ * This class provides functionality to create trace spans with proper context handling,
+ * enabling distributed tracing across workflow and activity boundaries.
+ *
+ * Usage example:
+ * ```php
+ *  $tracerProvider = new Trace\TracerProvider($spanProcessor);
+ *  $tracer = new Tracer(
+ *      $tracerProvider->getTracer('MyApp'),
+ *      TraceContextPropagator::getInstance(),
+ *  );
+ *
+ *  $result = $tracer->trace(
+ *      name: 'operation_name',
+ *      callback: fn() => performOperation(),
+ *      attributes: ['key' => 'value'],
+ *      scoped: true,
+ *  );
+ * ```
+ */
 final class Tracer
 {
+    /**
+     * @var SpanInterface|null The last created span, used for context propagation
+     */
     private ?SpanInterface $lastSpan = null;
 
+    /**
+     * @param TracerInterface $tracer The OpenTelemetry tracer implementation
+     * @param TextMapPropagatorInterface $propagator Context propagator for distributed tracing
+     * @param array<non-empty-string, mixed> $context Existing trace context for continued tracing
+     */
     public function __construct(
         private readonly TracerInterface $tracer,
         private readonly TextMapPropagatorInterface $propagator,
         private readonly array $context = [],
     ) {}
 
+    /**
+     * Creates a new tracer with the specified context.
+     *
+     * Filters the provided context to only include fields recognized by the propagator.
+     *
+     * @param array<non-empty-string, mixed> $context The trace context to use
+     * @return self A new tracer instance with the provided context
+     */
     public function fromContext(array $context = []): self
     {
         $context = \array_intersect_ukey(
@@ -32,10 +70,18 @@ final class Tracer
     }
 
     /**
-     * @param non-empty-string $name
-     * @psalm-param SpanKind::KIND_* $spanKind
-     * @param array<non-empty-string, array<array-key, mixed>|null|scalar> $attributes
-     * @throws \Throwable
+     * Creates a trace span and executes the provided callback within its context.
+     *
+     * Handles span activation, attribute setting, exception recording, and proper cleanup.
+     *
+     * @param non-empty-string $name The name of the span
+     * @param callable(SpanInterface): mixed $callback The function to execute within the span context
+     * @param array<non-empty-string, array<array-key, mixed>|null|scalar> $attributes Span attributes to record
+     * @param bool $scoped Whether to make this span the active span in the current context
+     * @param SpanKind::KIND_*|null $spanKind The kind of span (client, server, etc.)
+     * @param int|null $startTime Optional timestamp for when the span started
+     * @return mixed The result of the callback execution
+     * @throws \Throwable Any exception thrown by the callback is re-thrown after recording
      */
     public function trace(
         string $name,
@@ -68,6 +114,14 @@ final class Tracer
         }
     }
 
+    /**
+     * Gets the current tracing context for propagation.
+     *
+     * If a span has been created by this tracer, uses that span's context.
+     * Otherwise, returns the original context.
+     *
+     * @return array<non-empty-string, mixed> The trace context for propagation
+     */
     public function getContext(): array
     {
         if ($this->lastSpan !== null) {
@@ -81,14 +135,26 @@ final class Tracer
         return $this->context;
     }
 
+    /**
+     * Gets the text map propagator used by this tracer.
+     *
+     * @return TextMapPropagatorInterface The propagator instance
+     */
     public function getPropagator(): TextMapPropagatorInterface
     {
         return $this->propagator;
     }
 
     /**
-     * @param non-empty-string $name
-     * @psalm-param SpanKind::KIND_* $spanKind
+     * Creates a new trace span with the given parameters.
+     *
+     * Configures the span with the appropriate kind, start time, and parent context.
+     * Stores the created span as the last span for context propagation.
+     *
+     * @param non-empty-string $name The name of the span
+     * @param SpanKind::KIND_*|null $spanKind The kind of span (client, server, etc.)
+     * @param int|null $startTime Optional timestamp for when the span started
+     * @return SpanInterface The created span instance
      */
     private function getTraceSpan(
         string $name,
