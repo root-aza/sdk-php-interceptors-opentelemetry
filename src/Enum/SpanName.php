@@ -9,6 +9,7 @@ enum SpanName: string
     case ActivityHandle = 'RunActivity';
     case StartWorkflow = 'StartWorkflow';
     case SignalWithStartWorkflow = 'SignalWithStartWorkflow';
+    case UpdateWithStartWorkflow = 'UpdateWithStartWorkflow';
     case WorkflowOutboundRequest = 'WorkflowOutboundRequest';
     case SpanDelimiter = ':';
 }

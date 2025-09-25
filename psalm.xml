@@ -14,10 +14,5 @@
         </ignoreFiles>
     </projectFiles>
     <issueHandlers>
-        <MissingImmutableAnnotation>
-            <errorLevel type="suppress">
-                <directory name="src"/>
-            </errorLevel>
-        </MissingImmutableAnnotation>
     </issueHandlers>
 </psalm>

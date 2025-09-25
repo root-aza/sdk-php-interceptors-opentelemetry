@@ -17,8 +17,8 @@ Thumbs.db
 .php_cs.cache
 
 # Other
-*.exe
-rr
-.rr.yaml
-temporal-test-server
-build
+/*.exe
+/rr
+/.rr.yaml
+/temporal-test-server
+/runtime

@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace Temporal\OpenTelemetry\Tests\Unit\Interceptor;
 
+use OpenTelemetry\API\Common\Time\Clock;
+use OpenTelemetry\API\Common\Time\ClockInterface;
 use OpenTelemetry\API\Trace\SpanKind;
-use OpenTelemetry\SDK\Common\Time\ClockFactory;
-use OpenTelemetry\SDK\Common\Time\ClockInterface;
 use React\Promise\Deferred;
 use React\Promise\PromiseInterface;
-use stdClass;
 use Temporal\DataConverter\ValuesInterface;
 use Temporal\Interceptor\HeaderInterface;
 use Temporal\OpenTelemetry\Enum\RequestAttribute;
 use Temporal\OpenTelemetry\Enum\SpanName;
 use Temporal\OpenTelemetry\Enum\WorkflowAttribute;
 use Temporal\OpenTelemetry\Interceptor\OpenTelemetryWorkflowOutboundRequestInterceptor;
-use Temporal\OpenTelemetry\Tests\Fixtures\Promise;
 use Temporal\OpenTelemetry\Tests\Fixtures\Request;
 use Temporal\OpenTelemetry\Tests\Unit\TestCase;
 use Temporal\Workflow;
@@ -33,7 +31,7 @@ final class OpenTelemetryWorkflowOutboundRequestInterceptorTest extends TestCase
             ->method('now')
             ->willReturn(12345);
 
-        ClockFactory::setDefault($clock);
+        Clock::setDefault($clock);
 
         $info = new WorkflowInfo();
         $info->type->name = 'foo';
@@ -92,7 +90,7 @@ final class OpenTelemetryWorkflowOutboundRequestInterceptorTest extends TestCase
             ->method('now')
             ->willReturn(12345);
 
-        ClockFactory::setDefault($clock);
+        Clock::setDefault($clock);
 
         $info = new WorkflowInfo();
         $info->type->name = 'foo';
