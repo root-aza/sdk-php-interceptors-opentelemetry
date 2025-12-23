@@ -9,6 +9,8 @@ use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\Propagation\TextMapPropagatorInterface;
+use Temporal\Exception\Failure\ApplicationErrorCategory;
+use Temporal\Exception\Failure\ApplicationFailure;
 
 /**
  * Wrapper for OpenTelemetry tracer to simplify trace span creation and context propagation.
@@ -106,7 +108,12 @@ final class Tracer
 
             return $result;
         } catch (\Throwable $e) {
-            $traceSpan->recordException($e);
+            if (
+                !$e instanceof ApplicationFailure
+                || $e->getApplicationErrorCategory() !== ApplicationErrorCategory::Benign
+            ) {
+                $traceSpan->recordException($e);
+            }
             throw $e;
         } finally {
             $traceSpan->end();
