@@ -10,6 +10,8 @@ use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\Context\ScopeInterface;
 use PHPUnit\Framework\TestCase as PHPUnitTestCase;
+use Temporal\Exception\Failure\ApplicationErrorCategory;
+use Temporal\Exception\Failure\ApplicationFailure;
 use Temporal\OpenTelemetry\Tracer;
 
 abstract class TestCase extends PHPUnitTestCase
@@ -43,7 +45,6 @@ abstract class TestCase extends PHPUnitTestCase
         } else {
             $this->span->expects($this->never())->method('activate');
         }
-        $this->span->expects($this->once())->method('updateName')->with($name);
         $this->span->expects($this->once())->method('setAttributes')->with($attributes);
         $this->span->expects($this->once())->method('end');
 
@@ -88,9 +89,21 @@ abstract class TestCase extends PHPUnitTestCase
             $this->span->expects($this->never())->method('activate');
         }
         $this->span->expects($this->once())->method('end');
-        $exception === null
-            ? $this->span->expects($this->once())->method('recordException')
-            : $this->span->expects($this->once())->method('recordException')->with($exception);
+        $this->span->expects($this->once())->method('updateName');
+        $this->span->expects($this->once())->method('setAttributes');
+
+        if ($exception === null) {
+            $this->span->expects($this->never())->method('recordException');
+            $this->span->expects($this->once())->method('setStatus');
+        } elseif (
+            $exception instanceof ApplicationFailure
+            && $exception->getApplicationErrorCategory() !== ApplicationErrorCategory::Benign
+        ) {
+            $this->span->expects($this->once())->method('recordException')->with($exception);
+        } else {
+            $this->span->expects($this->once())->method('recordException')->with($exception);
+            $this->span->expects($this->exactly(2))->method('setStatus');
+        }
 
         $spanKind !== null
             ? $this->spanBuilder->expects($this->once())->method('setSpanKind')->with($spanKind)

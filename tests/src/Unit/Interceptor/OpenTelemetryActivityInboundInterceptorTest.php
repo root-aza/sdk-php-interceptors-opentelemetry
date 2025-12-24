@@ -38,11 +38,11 @@ final class OpenTelemetryActivityInboundInterceptorTest extends TestCase
                 ActivityAttribute::TaskQueue->value => 'default',
                 ActivityAttribute::WorkflowType->value => null,
                 ActivityAttribute::WorkflowNamespace->value => 'default',
-                ActivityAttribute::Header->value => []
+                ActivityAttribute::Header->value => [],
             ],
             scoped: true,
             spanKind: SpanKind::KIND_SERVER,
-            name: SpanName::ActivityHandle->value
+            name: SpanName::ActivityHandle->value,
         );
 
         $input = new ActivityInput(
@@ -53,7 +53,7 @@ final class OpenTelemetryActivityInboundInterceptorTest extends TestCase
         $interceptor = new OpenTelemetryActivityInboundInterceptor($tracer);
         $interceptor->handleActivityInbound(
             $input,
-            fn ($receivedInput): mixed => $this->assertSame($input, $receivedInput)
+            fn($receivedInput): mixed => $this->assertSame($input, $receivedInput),
         );
     }
 }

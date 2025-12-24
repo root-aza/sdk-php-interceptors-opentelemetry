@@ -13,6 +13,17 @@ use Temporal\OpenTelemetry\Tracer;
 
 final class TracerTest extends TestCase
 {
+    public static function contextDataProvider(): \Traversable
+    {
+        yield [[], []];
+        yield [['foo' => 'bar'], []];
+        yield [['traceparent' => 'foo', 'tracestate' => 'bar'], ['traceparent' => 'foo', 'tracestate' => 'bar']];
+        yield [
+            ['traceparent' => 'foo', 'tracestate' => 'bar', 'shouldBeRemoved' => 'value'],
+            ['traceparent' => 'foo', 'tracestate' => 'bar'],
+        ];
+    }
+
     #[DataProvider('contextDataProvider')]
     public function testFromContext(array $context, array $expected): void
     {
@@ -27,7 +38,7 @@ final class TracerTest extends TestCase
 
         $this->assertSame(
             $this->span,
-            $tracer->trace('foo', static fn (SpanInterface $span): SpanInterface => $span)
+            $tracer->trace('foo', static fn(SpanInterface $span): SpanInterface => $span),
         );
     }
 
@@ -39,9 +50,9 @@ final class TracerTest extends TestCase
             $this->span,
             $tracer->trace(
                 name: 'foo',
-                callback: static fn (SpanInterface $span): SpanInterface => $span,
-                attributes: ['foo' => 'bar']
-            )
+                callback: static fn(SpanInterface $span): SpanInterface => $span,
+                attributes: ['foo' => 'bar'],
+            ),
         );
     }
 
@@ -53,9 +64,9 @@ final class TracerTest extends TestCase
             $this->span,
             $tracer->trace(
                 name: 'foo',
-                callback: static fn (SpanInterface $span): SpanInterface => $span,
-                scoped: true
-            )
+                callback: static fn(SpanInterface $span): SpanInterface => $span,
+                scoped: true,
+            ),
         );
     }
 
@@ -67,9 +78,9 @@ final class TracerTest extends TestCase
             $this->span,
             $tracer->trace(
                 name: 'foo',
-                callback: static fn (SpanInterface $span): SpanInterface => $span,
-                spanKind: 5
-            )
+                callback: static fn(SpanInterface $span): SpanInterface => $span,
+                spanKind: 5,
+            ),
         );
     }
 
@@ -81,9 +92,9 @@ final class TracerTest extends TestCase
             $this->span,
             $tracer->trace(
                 name: 'foo',
-                callback: static fn (SpanInterface $span): SpanInterface => $span,
-                startTime: 10
-            )
+                callback: static fn(SpanInterface $span): SpanInterface => $span,
+                startTime: 10,
+            ),
         );
     }
 
@@ -94,11 +105,17 @@ final class TracerTest extends TestCase
             ->expects($this->never())
             ->method('activate');
         $span
-            ->expects($this->never())
+            ->expects($this->once())
             ->method('updateName');
         $span
-            ->expects($this->never())
+            ->expects($this->once())
             ->method('setAttributes');
+        $span
+            ->expects($this->once())
+            ->method('recordException');
+        $span
+            ->expects($this->exactly(2))
+            ->method('setStatus');
         $span
             ->expects($this->once())
             ->method('end');
@@ -131,7 +148,7 @@ final class TracerTest extends TestCase
         $this->expectExceptionMessage('Some error');
         $tracer->trace(
             name: 'foo',
-            callback: static fn (SpanInterface $span): SpanInterface => throw new \Exception('Some error'),
+            callback: static fn(SpanInterface $span): SpanInterface => throw new \Exception('Some error'),
         );
     }
 
@@ -141,16 +158,5 @@ final class TracerTest extends TestCase
         $tracer = new Tracer($this->createMock(TracerInterface::class), $propagator);
 
         $this->assertSame($propagator, $tracer->getPropagator());
-    }
-
-    public static function contextDataProvider(): \Traversable
-    {
-        yield [[], []];
-        yield [['foo' => 'bar'], []];
-        yield [['traceparent' => 'foo', 'tracestate' => 'bar'], ['traceparent' => 'foo', 'tracestate' => 'bar']];
-        yield [
-            ['traceparent' => 'foo', 'tracestate' => 'bar', 'shouldBeRemoved' => 'value'],
-            ['traceparent' => 'foo', 'tracestate' => 'bar']
-        ];
     }
 }

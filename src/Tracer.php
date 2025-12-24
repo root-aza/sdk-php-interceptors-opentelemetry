@@ -6,6 +6,7 @@ namespace Temporal\OpenTelemetry;
 
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\API\Trace\SpanKind;
+use OpenTelemetry\API\Trace\StatusCode;
 use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\Propagation\TextMapPropagatorInterface;
@@ -100,19 +101,17 @@ final class Tracer
             $scope = $traceSpan->activate();
         }
 
+        $traceSpan->updateName($name);
+        $traceSpan->setAttributes($attributes);
+
         try {
-            $result = $callback($traceSpan);
+            $traceSpan->setStatus(StatusCode::STATUS_OK);
 
-            $traceSpan->updateName($name);
-            $traceSpan->setAttributes($attributes);
-
-            return $result;
+            return $callback($traceSpan);
         } catch (\Throwable $e) {
-            if (
-                !$e instanceof ApplicationFailure
-                || $e->getApplicationErrorCategory() !== ApplicationErrorCategory::Benign
-            ) {
-                $traceSpan->recordException($e);
+            $traceSpan->recordException($e);
+            if (!$this->canSkipExceptionRecording($e)) {
+                $traceSpan->setStatus(StatusCode::STATUS_ERROR, $e->getMessage());
             }
             throw $e;
         } finally {
@@ -150,6 +149,23 @@ final class Tracer
     public function getPropagator(): TextMapPropagatorInterface
     {
         return $this->propagator;
+    }
+
+    /**
+     *
+     *
+     * {@see ApplicationFailure} could be thrown from userland
+     * As well as it could come from the Temporal SDK itself
+     */
+    private function canSkipExceptionRecording(\Throwable $e): bool
+    {
+        if ($e instanceof ApplicationFailure) {
+            return $e->getApplicationErrorCategory() === ApplicationErrorCategory::Benign;
+        }
+        if ($e->getPrevious() instanceof ApplicationFailure) {
+            return $e->getPrevious()->getApplicationErrorCategory() === ApplicationErrorCategory::Benign;
+        }
+        return false;
     }
 
     /**
