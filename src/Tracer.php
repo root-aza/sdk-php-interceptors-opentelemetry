@@ -102,7 +102,7 @@ final class Tracer
             $result = $callback($traceSpan);
 
             $traceSpan->updateName($name);
-            $traceSpan->setAttributes($attributes);
+            $traceSpan->setAttributes($this->normalizeAttributes($attributes));
 
             return $result;
         } catch (\Throwable $e) {
@@ -143,6 +143,41 @@ final class Tracer
     public function getPropagator(): TextMapPropagatorInterface
     {
         return $this->propagator;
+    }
+
+    /**
+     * Convert mixed values to scalar or null.
+     *
+     * @param iterable<non-empty-string, mixed> $attributes
+     *
+     * @return iterable<non-empty-string, null|scalar|array<array-key, null|scalar>>
+     */
+    private static function normalizeAttributes(iterable $attributes): iterable
+    {
+        $normalized = [];
+        foreach ($attributes as $key => $value) {
+            $normalized[$key] = match (true) {
+                !\is_array($value) => self::normalizeAttributeValue($value),
+                \array_keys($value) === [0] => self::normalizeAttributeValue($value[0]),
+                default => \array_map(self::normalizeAttributeValue(...), $value),
+            };
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Convert a single value to scalar or null.
+     */
+    private static function normalizeAttributeValue(mixed $value): null|bool|int|float|string
+    {
+        return match (true) {
+            $value === null || \is_scalar($value) => $value,
+            $value instanceof \Stringable => $value->__toString(),
+            \is_array($value) || $value instanceof \stdClass || $value instanceof \JsonSerializable => \json_encode($value),
+            \is_object($value) => $value::class,
+            default => \get_debug_type($value),
+        };
     }
 
     /**
