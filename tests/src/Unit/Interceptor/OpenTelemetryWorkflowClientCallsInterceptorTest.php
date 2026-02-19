@@ -46,7 +46,7 @@ final class OpenTelemetryWorkflowClientCallsInterceptorTest extends TestCase
         $this->header
             ->expects($this->once())
             ->method('withValue')
-            ->with('_tracer-data', (object)[]);
+            ->with('_tracer-data', []);
 
         $tracer = $this->configureTracer(
             attributes: [
@@ -71,7 +71,7 @@ final class OpenTelemetryWorkflowClientCallsInterceptorTest extends TestCase
         $this->header
             ->expects($this->once())
             ->method('withValue')
-            ->with('_tracer-data', (object)[]);
+            ->with('_tracer-data', []);
 
         $tracer = $this->configureTracer(
             attributes: [
@@ -102,7 +102,7 @@ final class OpenTelemetryWorkflowClientCallsInterceptorTest extends TestCase
         $this->header
             ->expects($this->once())
             ->method('withValue')
-            ->with('_tracer-data', (object)[]);
+            ->with('_tracer-data', []);
 
         $tracer = $this->configureTracer(
             attributes: [
