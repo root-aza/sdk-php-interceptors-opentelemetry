@@ -152,7 +152,7 @@ final class Tracer
      *
      * @return iterable<non-empty-string, null|scalar|array<array-key, null|scalar>>
      */
-    private static function normalizeAttributes(iterable $attributes): iterable
+    private function normalizeAttributes(iterable $attributes): iterable
     {
         $normalized = [];
         foreach ($attributes as $key => $value) {
@@ -169,7 +169,7 @@ final class Tracer
     /**
      * Convert a single value to scalar or null.
      */
-    private static function normalizeAttributeValue(mixed $value): null|bool|int|float|string
+    private function normalizeAttributeValue(mixed $value): null|bool|int|float|string
     {
         return match (true) {
             $value === null || \is_scalar($value) => $value,
