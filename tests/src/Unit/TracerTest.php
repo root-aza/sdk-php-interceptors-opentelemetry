@@ -8,11 +8,68 @@ use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
 use OpenTelemetry\API\Trace\SpanBuilderInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\API\Trace\TracerInterface;
+use OpenTelemetry\Context\ContextInterface;
+use OpenTelemetry\SDK\Common\Future\CancellationInterface;
+use OpenTelemetry\SDK\Trace\ReadableSpanInterface;
+use OpenTelemetry\SDK\Trace\ReadWriteSpanInterface;
+use OpenTelemetry\SDK\Trace\SpanProcessorInterface;
+use OpenTelemetry\SDK\Trace\TracerProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Temporal\OpenTelemetry\Tracer;
 
+use function PHPUnit\Framework\assertEquals;
+
 final class TracerTest extends TestCase
 {
+    public static function contextDataProvider(): \Traversable
+    {
+        yield [[], []];
+        yield [['foo' => 'bar'], []];
+        yield [['traceparent' => 'foo', 'tracestate' => 'bar'], ['traceparent' => 'foo', 'tracestate' => 'bar']];
+        yield [
+            ['traceparent' => 'foo', 'tracestate' => 'bar', 'shouldBeRemoved' => 'value'],
+            ['traceparent' => 'foo', 'tracestate' => 'bar'],
+        ];
+    }
+
+    public static function normalizeAttributesProvider(): iterable
+    {
+        yield [['test' => new \stdClass()], ['test' => '{}']];
+        yield [['test' => new Foo()], ['test' => 'Temporal\OpenTelemetry\Tests\Unit\Foo']];
+        yield [['test' => new class implements \Stringable {
+            public function __toString(): string
+            {
+                return 'foo';
+            }
+        }], ['test' => 'foo']];
+
+        yield [['test' => \fopen('php://stdout', 'r')], ['test' => 'resource (stream)']];
+
+        yield [['test' => new class implements \JsonSerializable {
+            public function jsonSerialize(): mixed
+            {
+                return ['foo' => 'bar'];
+            }
+        }], ['test' => '{"foo":"bar"}']];
+
+
+        yield [['test' => [
+            new class implements \Stringable {
+                public function __toString(): string
+                {
+                    return 'foo';
+                }
+            },
+            new class implements \JsonSerializable {
+                public function jsonSerialize(): mixed
+                {
+                    return ['foo' => 'bar'];
+                }
+            },
+            new Foo(),
+        ]], ['test' => ['foo', '{"foo":"bar"}', 'Temporal\OpenTelemetry\Tests\Unit\Foo']]];
+    }
+
     #[DataProvider('contextDataProvider')]
     public function testFromContext(array $context, array $expected): void
     {
@@ -27,7 +84,7 @@ final class TracerTest extends TestCase
 
         $this->assertSame(
             $this->span,
-            $tracer->trace('foo', static fn (SpanInterface $span): SpanInterface => $span)
+            $tracer->trace('foo', static fn(SpanInterface $span): SpanInterface => $span),
         );
     }
 
@@ -39,9 +96,9 @@ final class TracerTest extends TestCase
             $this->span,
             $tracer->trace(
                 name: 'foo',
-                callback: static fn (SpanInterface $span): SpanInterface => $span,
-                attributes: ['foo' => 'bar']
-            )
+                callback: static fn(SpanInterface $span): SpanInterface => $span,
+                attributes: ['foo' => 'bar'],
+            ),
         );
     }
 
@@ -53,9 +110,9 @@ final class TracerTest extends TestCase
             $this->span,
             $tracer->trace(
                 name: 'foo',
-                callback: static fn (SpanInterface $span): SpanInterface => $span,
-                scoped: true
-            )
+                callback: static fn(SpanInterface $span): SpanInterface => $span,
+                scoped: true,
+            ),
         );
     }
 
@@ -67,9 +124,9 @@ final class TracerTest extends TestCase
             $this->span,
             $tracer->trace(
                 name: 'foo',
-                callback: static fn (SpanInterface $span): SpanInterface => $span,
-                spanKind: 5
-            )
+                callback: static fn(SpanInterface $span): SpanInterface => $span,
+                spanKind: 5,
+            ),
         );
     }
 
@@ -81,9 +138,9 @@ final class TracerTest extends TestCase
             $this->span,
             $tracer->trace(
                 name: 'foo',
-                callback: static fn (SpanInterface $span): SpanInterface => $span,
-                startTime: 10
-            )
+                callback: static fn(SpanInterface $span): SpanInterface => $span,
+                startTime: 10,
+            ),
         );
     }
 
@@ -131,7 +188,7 @@ final class TracerTest extends TestCase
         $this->expectExceptionMessage('Some error');
         $tracer->trace(
             name: 'foo',
-            callback: static fn (SpanInterface $span): SpanInterface => throw new \Exception('Some error'),
+            callback: static fn(SpanInterface $span): SpanInterface => throw new \Exception('Some error'),
         );
     }
 
@@ -143,14 +200,61 @@ final class TracerTest extends TestCase
         $this->assertSame($propagator, $tracer->getPropagator());
     }
 
-    public static function contextDataProvider(): \Traversable
+    /**
+     * @param array{} $attributes
+     * @param array{} $normalizedAttributes
+     *
+     * @throws \Throwable
+     */
+    #[DataProvider('normalizeAttributesProvider')]
+    public function testNormalizeAttributes(array $attributes, array $normalizedAttributes): void
     {
-        yield [[], []];
-        yield [['foo' => 'bar'], []];
-        yield [['traceparent' => 'foo', 'tracestate' => 'bar'], ['traceparent' => 'foo', 'tracestate' => 'bar']];
-        yield [
-            ['traceparent' => 'foo', 'tracestate' => 'bar', 'shouldBeRemoved' => 'value'],
-            ['traceparent' => 'foo', 'tracestate' => 'bar']
-        ];
+        $tracerProvider = TracerProvider::builder()
+            ->addSpanProcessor(
+                new class($normalizedAttributes) implements SpanProcessorInterface {
+                    /**
+                     * @param array{} $normalizedAttributes
+                     */
+                    public function __construct(
+                        private readonly array $normalizedAttributes,
+                    ) {}
+
+                    #[\Override]
+                    public function onStart(ReadWriteSpanInterface $span, ContextInterface $parentContext): void {}
+
+                    #[\Override]
+                    public function onEnd(ReadableSpanInterface $span): void
+                    {
+                        assertEquals($this->normalizedAttributes, $span->toSpanData()->getAttributes()->toArray());
+                    }
+
+                    #[\Override]
+                    public function forceFlush(?CancellationInterface $cancellation = null): bool
+                    {
+                        return true;
+                    }
+
+                    #[\Override]
+                    public function shutdown(?CancellationInterface $cancellation = null): bool
+                    {
+                        return true;
+                    }
+                },
+            )
+            ->build()
+        ;
+
+        $tracer = new Tracer($tracerProvider->getTracer('temporal'), TraceContextPropagator::getInstance());
+
+        $tracer->trace(
+            name: 'foo',
+            callback: static fn(SpanInterface $span): SpanInterface => $span,
+            attributes: $attributes,
+        );
+
+        $tracerProvider->forceFlush();
     }
 }
+
+
+final class Foo {}
