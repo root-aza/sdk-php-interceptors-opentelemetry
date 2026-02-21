@@ -17,8 +17,6 @@ use OpenTelemetry\SDK\Trace\TracerProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Temporal\OpenTelemetry\Tracer;
 
-use function PHPUnit\Framework\assertEquals;
-
 final class TracerTest extends TestCase
 {
     public static function contextDataProvider(): \Traversable
@@ -209,14 +207,16 @@ final class TracerTest extends TestCase
     #[DataProvider('normalizeAttributesProvider')]
     public function testNormalizeAttributes(array $attributes, array $normalizedAttributes): void
     {
+        $actualAttributes = [];
+
         $tracerProvider = TracerProvider::builder()
             ->addSpanProcessor(
-                new class($normalizedAttributes) implements SpanProcessorInterface {
+                new class($actualAttributes) implements SpanProcessorInterface {
                     /**
-                     * @param array{} $normalizedAttributes
+                     * @param array<never, never> $actualAttributes
                      */
                     public function __construct(
-                        private readonly array $normalizedAttributes,
+                        private array &$actualAttributes,
                     ) {}
 
                     #[\Override]
@@ -225,7 +225,7 @@ final class TracerTest extends TestCase
                     #[\Override]
                     public function onEnd(ReadableSpanInterface $span): void
                     {
-                        assertEquals($this->normalizedAttributes, $span->toSpanData()->getAttributes()->toArray());
+                        $this->actualAttributes = $span->toSpanData()->getAttributes()->toArray();
                     }
 
                     #[\Override]
@@ -253,6 +253,8 @@ final class TracerTest extends TestCase
         );
 
         $tracerProvider->forceFlush();
+
+        $this->assertEquals($normalizedAttributes, $actualAttributes);
     }
 }
 
