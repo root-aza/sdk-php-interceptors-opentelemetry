@@ -49,6 +49,6 @@ trait TracerContext
      */
     private function setContext(HeaderInterface $header, array $context): HeaderInterface
     {
-        return $header->withValue($this->getTracerHeader(), (object) $context);
+        return $header->withValue($this->getTracerHeader(), $context);
     }
 }
