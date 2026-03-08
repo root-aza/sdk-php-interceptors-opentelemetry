@@ -19,17 +19,6 @@ use Temporal\OpenTelemetry\Tracer;
 
 final class TracerTest extends TestCase
 {
-    public static function contextDataProvider(): \Traversable
-    {
-        yield [[], []];
-        yield [['foo' => 'bar'], []];
-        yield [['traceparent' => 'foo', 'tracestate' => 'bar'], ['traceparent' => 'foo', 'tracestate' => 'bar']];
-        yield [
-            ['traceparent' => 'foo', 'tracestate' => 'bar', 'shouldBeRemoved' => 'value'],
-            ['traceparent' => 'foo', 'tracestate' => 'bar'],
-        ];
-    }
-
     public static function normalizeAttributesProvider(): iterable
     {
         yield [['test' => new \stdClass()], ['test' => '{}']];
@@ -66,6 +55,17 @@ final class TracerTest extends TestCase
             },
             new Foo(),
         ]], ['test' => ['foo', '{"foo":"bar"}', 'Temporal\OpenTelemetry\Tests\Unit\Foo']]];
+    }
+
+    public static function contextDataProvider(): \Traversable
+    {
+        yield [[], []];
+        yield [['foo' => 'bar'], []];
+        yield [['traceparent' => 'foo', 'tracestate' => 'bar'], ['traceparent' => 'foo', 'tracestate' => 'bar']];
+        yield [
+            ['traceparent' => 'foo', 'tracestate' => 'bar', 'shouldBeRemoved' => 'value'],
+            ['traceparent' => 'foo', 'tracestate' => 'bar'],
+        ];
     }
 
     #[DataProvider('contextDataProvider')]
@@ -149,11 +149,17 @@ final class TracerTest extends TestCase
             ->expects($this->never())
             ->method('activate');
         $span
-            ->expects($this->never())
+            ->expects($this->once())
             ->method('updateName');
         $span
-            ->expects($this->never())
+            ->expects($this->once())
             ->method('setAttributes');
+        $span
+            ->expects($this->once())
+            ->method('recordException');
+        $span
+            ->expects($this->exactly(2))
+            ->method('setStatus');
         $span
             ->expects($this->once())
             ->method('end');

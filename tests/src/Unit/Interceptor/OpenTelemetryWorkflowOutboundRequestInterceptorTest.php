@@ -45,17 +45,17 @@ final class OpenTelemetryWorkflowOutboundRequestInterceptorTest extends TestCase
                 RequestAttribute::Type->value => Request::class,
                 RequestAttribute::Name->value => 'someRequest',
                 RequestAttribute::Id->value => 987,
-                WorkflowAttribute::Type->value => 'foo'
+                WorkflowAttribute::Type->value => 'foo',
             ],
             scoped: true,
             spanKind: SpanKind::KIND_SERVER,
             startTime: 12345,
-            name: SpanName::WorkflowOutboundRequest->value . SpanName::SpanDelimiter->value . 'someRequest'
+            name: SpanName::WorkflowOutboundRequest->value . SpanName::SpanDelimiter->value . 'someRequest',
         );
 
         $deferred = new Deferred();
         $promise = $deferred->promise();
-        $testContext = (object)['value' => null, 'error' => null];
+        $testContext = (object) ['value' => null, 'error' => null];
 
         $header = $this->createMock(HeaderInterface::class);
         $header
@@ -67,12 +67,12 @@ final class OpenTelemetryWorkflowOutboundRequestInterceptorTest extends TestCase
         $interceptor->handleOutboundRequest(
             new Request(
                 $header,
-                $this->createMock(ValuesInterface::class)
+                $this->createMock(ValuesInterface::class),
             ),
-            fn ($receivedRequest): PromiseInterface => $promise
+            static fn($receivedRequest): PromiseInterface => $promise,
         )->then(
-            fn ($value) => $testContext->value = $value,
-            fn ($error) => $testContext->error = $error,
+            static fn($value) => $testContext->value = $value,
+            static fn($error) => $testContext->error = $error,
         );
 
         $deferred->resolve('test-value');
@@ -110,7 +110,7 @@ final class OpenTelemetryWorkflowOutboundRequestInterceptorTest extends TestCase
 
         $deferred = new Deferred();
         $promise = $deferred->promise();
-        $testContext = (object)['value' => null, 'error' => null];
+        $testContext = (object) ['value' => null, 'error' => null];
 
         $header = $this->createMock(HeaderInterface::class);
         $header
@@ -122,17 +122,18 @@ final class OpenTelemetryWorkflowOutboundRequestInterceptorTest extends TestCase
         $interceptor->handleOutboundRequest(
             new Request(
                 $header,
-                $this->createMock(ValuesInterface::class)
+                $this->createMock(ValuesInterface::class),
             ),
-            fn ($receivedRequest): PromiseInterface => $promise
+            static fn($receivedRequest): PromiseInterface => $promise,
         )->then(
-            fn (mixed $value) => $testContext->value = $value,
-            fn (\Throwable $error) => $testContext->error = $error,
+            static fn(mixed $value) => $testContext->value = $value,
+            static fn(\Throwable $error) => $testContext->error = $error,
         );
 
         $deferred->reject($exception);
 
         // test that the promise is rejected with the correct error
+        $this->assertNotNull($testContext->error);
         $this->assertSame($exception, $testContext->error);
         $this->assertNull($testContext->value);
     }

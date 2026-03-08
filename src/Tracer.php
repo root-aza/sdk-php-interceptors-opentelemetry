@@ -6,9 +6,12 @@ namespace Temporal\OpenTelemetry;
 
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\API\Trace\SpanKind;
+use OpenTelemetry\API\Trace\StatusCode;
 use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\Context\Context;
 use OpenTelemetry\Context\Propagation\TextMapPropagatorInterface;
+use Temporal\Exception\Failure\ApplicationErrorCategory;
+use Temporal\Exception\Failure\ApplicationFailure;
 
 /**
  * Wrapper for OpenTelemetry tracer to simplify trace span creation and context propagation.
@@ -98,15 +101,18 @@ final class Tracer
             $scope = $traceSpan->activate();
         }
 
+        $traceSpan->updateName($name);
+        $traceSpan->setAttributes($this->normalizeAttributes($attributes));
+
         try {
-            $result = $callback($traceSpan);
+            $traceSpan->setStatus(StatusCode::STATUS_OK);
 
-            $traceSpan->updateName($name);
-            $traceSpan->setAttributes($this->normalizeAttributes($attributes));
-
-            return $result;
+            return $callback($traceSpan);
         } catch (\Throwable $e) {
             $traceSpan->recordException($e);
+            if (!$this->canSkipExceptionRecording($e)) {
+                $traceSpan->setStatus(StatusCode::STATUS_ERROR, $e->getMessage());
+            }
             throw $e;
         } finally {
             $traceSpan->end();
@@ -178,6 +184,23 @@ final class Tracer
             \is_object($value) => $value::class,
             default => \get_debug_type($value),
         };
+    }
+
+    /**
+     *
+     *
+     * {@see ApplicationFailure} could be thrown from userland
+     * As well as it could come from the Temporal SDK itself
+     */
+    private function canSkipExceptionRecording(\Throwable $e): bool
+    {
+        if ($e instanceof ApplicationFailure) {
+            return $e->getApplicationErrorCategory() === ApplicationErrorCategory::Benign;
+        }
+        if ($e->getPrevious() instanceof ApplicationFailure) {
+            return $e->getPrevious()->getApplicationErrorCategory() === ApplicationErrorCategory::Benign;
+        }
+        return false;
     }
 
     /**
